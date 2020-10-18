@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package config;
+
+service Configs {
+    // 根据 唯一 获取配置设置
+    rpc Get(Request) returns (Response) {}
+    // 更新配置设置
+    rpc Update(Request) returns (Response) {}
+}
+
+message Request{
+    Config config = 1;
+}
+
+message Response {
+    Config config = 1;
+    bool valid = 2;
+}
+
+message Config{
+    Wechat wechat = 1;
+    MiniprogramWechat miniprogram_wechat = 2;               // 短信配置
+}
+
+
+message Wechat{
+    string app_id = 1;
+    string secret = 2;
+}
+
+message MiniprogramWechat{
+    string app_id = 1;           // 小程序
+    string secret = 2;          // 小程序
+}
+

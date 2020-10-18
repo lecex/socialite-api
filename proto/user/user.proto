@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package user;
+
+service Users {
+    // 获取用户列表
+    rpc List(Request) returns (Response) {}
+    // 根据 唯一 获取用户
+    rpc Get(Request) returns (Response) {}
+    // 创建用户
+    rpc Create(Request) returns (Response) {}
+    // 更新用户
+    rpc Update(Request) returns (Response) {}
+    // 删除用户
+    rpc Delete(Request) returns (Response) {}
+
+    // 绑定用户
+    rpc SelfBind(Request) returns (Response) {}
+    // 解除绑定
+    rpc SelfUnbind(Request) returns (Response) {}
+}
+
+message User {
+    string id = 1;
+    string socialite_user_id = 2;
+}
+
+message SocialiteUser {
+    string id = 1;
+    string oauth_id = 2;
+    string origin = 3;
+    string content = 4;
+    repeated User users = 5;
+    string created_at = 6;
+    string updated_at = 7;
+}
+
+message Request {
+    SocialiteUser socialite_user = 1;
+}
+
+message Response {
+    User user = 1;
+    repeated SocialiteUser socialite_users = 2;
+    int64 total = 3;
+    bool valid = 4;
+}

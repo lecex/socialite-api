@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package socialite;
+
+service Socialites {
+    // 获取授权
+    rpc Auth(Request) returns (Response) {}
+    rpc Register(Request) returns (Response) {} // 授权后注册【可用于增加新账号】
+    // 授权网址
+    rpc AuthURL(Request) returns (Response) {}
+}
+
+
+message Socialite {
+    string driver = 1;
+    string code = 2;
+    string state = 3;
+    string callback = 4;
+}
+
+message User {
+    string id = 1;
+    string username = 2;
+    string mobile = 3;
+    string email = 4;
+    string password = 5;
+    string name = 6;
+    string avatar = 7;
+    string token = 8;
+}
+
+message SocialiteUser {
+    string id = 1;
+    string oauth_id = 2;
+    string origin = 3;
+    string content = 4;
+    repeated User users = 5;
+}
+
+
+message Request {
+    Socialite socialite = 1;
+    SocialiteUser socialite_user = 2;
+}
+
+message Response {
+    bool valid = 1;
+    SocialiteUser socialite_user = 2;
+    string url = 3;
+}
