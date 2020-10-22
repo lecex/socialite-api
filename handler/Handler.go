@@ -10,10 +10,8 @@ import (
 
 	client "github.com/lecex/core/client"
 	configPB "github.com/lecex/socialite-api/proto/config"
-	healthPB "github.com/lecex/socialite-api/proto/health"
-	notifyPB "github.com/lecex/socialite-api/proto/notify"
-	orderPB "github.com/lecex/socialite-api/proto/order"
 	socialitePB "github.com/lecex/socialite-api/proto/socialite"
+	userPB "github.com/lecex/socialite-api/proto/user"
 
 	"github.com/lecex/socialite-api/config"
 	PB "github.com/lecex/user/proto/permission"
@@ -28,11 +26,9 @@ var Conf = config.Conf
 
 // Register 注册
 func (srv *Handler) Register() {
-	orderPB.RegisterOrdersHandler(srv.Server, &Order{Conf.Service["socialite"]})
 	configPB.RegisterConfigsHandler(srv.Server, &Config{Conf.Service["socialite"]})
-	socialitePB.RegisterPaysHandler(srv.Server, &Pay{Conf.Service["socialite"]})
-	notifyPB.RegisterNotifyHandler(srv.Server, &Notify{Conf.Service["socialite"]})
-	healthPB.RegisterHealthHandler(srv.Server, &Health{})
+	socialitePB.RegisterSocialitesHandler(srv.Server, &Socialite{Conf.Service["socialite"], Conf.Service["user"]})
+	userPB.RegisterUsersHandler(srv.Server, &User{Conf.Service["socialite"]})
 
 	go Sync() // 同步前端权限
 }

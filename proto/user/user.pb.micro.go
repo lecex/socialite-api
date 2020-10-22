@@ -46,7 +46,7 @@ type UsersService interface {
 	Delete(ctx context.Context, in *Request, opts ...client.CallOption) (*Response, error)
 	// 绑定用户
 	SelfBind(ctx context.Context, in *Request, opts ...client.CallOption) (*Response, error)
-	// 接触绑定
+	// 解除绑定
 	SelfUnbind(ctx context.Context, in *Request, opts ...client.CallOption) (*Response, error)
 }
 
@@ -147,7 +147,7 @@ type UsersHandler interface {
 	Delete(context.Context, *Request, *Response) error
 	// 绑定用户
 	SelfBind(context.Context, *Request, *Response) error
-	// 接触绑定
+	// 解除绑定
 	SelfUnbind(context.Context, *Request, *Response) error
 }
 

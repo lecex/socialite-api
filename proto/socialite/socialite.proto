@@ -5,9 +5,10 @@ package socialite;
 service Socialites {
     // 获取授权
     rpc Auth(Request) returns (Response) {}
-    rpc Register(Request) returns (Response) {} // 授权后注册【可用于增加新账号】
     // 授权网址
     rpc AuthURL(Request) returns (Response) {}
+    // 授权后注册【可用于增加新账号】
+    rpc Register(Request) returns (Response) {} 
 }
 
 
@@ -37,14 +38,21 @@ message SocialiteUser {
     repeated User users = 5;
 }
 
-
+message Miniprogram{ 
+    string encryptedData = 1;
+    string iv = 2;
+    string type = 3; // 小程序类型 微信、支付宝、字节跳动、百度
+}
 message Request {
     Socialite socialite = 1;
     SocialiteUser socialite_user = 2;
+    Miniprogram miniprogram = 3;
+    string uuid = 4;  // 常用语系统缓存位置标识 读取缓存使用
 }
 
 message Response {
     bool valid = 1;
     SocialiteUser socialite_user = 2;
     string url = 3;
+    string uuid = 4;  // 常用语系统缓存位置标识 读取缓存使用
 }

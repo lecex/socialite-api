@@ -3,8 +3,8 @@ package handler
 import (
 	"context"
 
-	pb "github.com/lecex/User-api/proto/user"
 	client "github.com/lecex/core/client"
+	pb "github.com/lecex/socialite-api/proto/user"
 )
 
 // User 配置结构
