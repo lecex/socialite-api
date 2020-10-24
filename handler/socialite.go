@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -45,17 +46,22 @@ func (srv *Socialite) Auth(ctx context.Context, req *pb.Request, res *pb.Respons
 			Token: resAuthSrv.Token,
 		})
 	}
-	if len(res.SocialiteUser.Users) == 0 {
-		key := uuid.NewV4().String()
+	if res.SocialiteUser.Id != "" && len(res.SocialiteUser.Users) == 0 {
+		session := uuid.NewV4().String()123456
+		
 		redis := redis.NewClient()
-		// 过期时间默认30分钟
-		err = redis.Set(key, res.SocialiteUser, 30*time.Minute).Err()
+		value, _ := json.Marshal(res.SocialiteUser)
+		// 过期时间默认 30 分钟
+		err = redis.Set(session, value, 30*time.Minute).Err()
+
+
 		if err != nil {
 			return err
 		}
-		res.Uuid = key
+		res.Session = session
 	}
-	fmt.Println(res)
+	res.SocialiteUser.Content = ""
+	res.SocialiteUser.OauthId = ""
 	return err
 }
 
@@ -66,40 +72,95 @@ func (srv *Socialite) AuthURL(ctx context.Context, req *pb.Request, res *pb.Resp
 
 // Register 授权后注册【可用于增加新账号】
 func (srv *Socialite) Register(ctx context.Context, req *pb.Request, res *pb.Response) (err error) {
-	err = client.Call(ctx, srv.ServiceName, "Users.Get", req, res)
-	if err != nil {
-		return err
+	// value, _ := json.Marshal(res.SocialiteUser)
+	// 过期时间默认 30 分钟
+	redis := redis.NewClient()
+	socialiteUser, err := redis.Get(req.Session).Result()
+	u := &pb.SocialiteUser{}
+	err = json.Unmarshal([]byte(socialiteUser), u)
+	if u.Id == "" && err != err {
+		return fmt.Errorf("Session 未查询到相关信息")
 	}
-	if len(req.SocialiteUser.Users) > 0 {
-		for _, user := range req.SocialiteUser.Users {
-			// 无用户先通过用户服务创建用户
-			reqUserSrv := &userSrvPB.Request{
-				User: &userSrvPB.User{
-					Username: user.Username,
-					Mobile:   user.Mobile,
-					Email:    user.Email,
-					Password: user.Password,
-					Name:     user.Name,
-					Avatar:   user.Avatar,
-				},
-			}
-			resUserSrv := &userSrvPB.Response{}
-			err = client.Call(context.TODO(), srv.ServiceName, "Users.Create", reqUserSrv, resUserSrv)
+	
+	if u.Origin == "miniprogram_" + req.Miniprogram.Type {
+		if req.Miniprogram.Type == "wechat" {
+			user.Mobile, err = getWechatMobile(u,req.Miniprogram)
 			if err != nil {
 				return err
 			}
-			// if resUserSrv.Valid {
-			// 	u.Users = append(u.Users, &userPB.User{
-			// 		Id: resUserSrv.User.Id,
-			// 	})
-			// }
 		}
+	}
+	if len(req.SocialiteUser.Users) > 0 {
+		user := req.SocialiteUser.Users[0]
+		// 禁止直接传入手机邮箱
+		user.Email = ""
+		// 无用户先通过用户服务创建用户
+		reqUserSrv := &userSrvPB.Request{
+			User: &userSrvPB.User{
+				Username: user.Username,
+				Mobile:   user.Mobile,
+				Email:    user.Email,
+				Password: user.Password,
+				Name:     user.Name,
+				Avatar:   user.Avatar,
+			},
+		}
+		resUserSrv := &userSrvPB.Response{}
+		err = client.Call(context.TODO(), srv.UserService, "Users.Create", reqUserSrv, resUserSrv)
+		if err != nil {
+			return err
+		}
+		// if resUserSrv.Valid {
+		// 	u.Users = append(u.Users, &userPB.User{
+		// 		Id: resUserSrv.User.Id,
+		// 	})
+		// }
 	} else {
 		err = fmt.Errorf("未收到用户注册信息")
 	}
+
+	// err = client.Call(ctx, srv.ServiceName, "Users.Get", req, res)
+	// if err != nil {
+	// 	return err
+	// }
+	// if len(req.SocialiteUser.Users) > 0 {
+	// 	for _, user := range req.SocialiteUser.Users {
+	// 		// 无用户先通过用户服务创建用户
+	// 		reqUserSrv := &userSrvPB.Request{
+	// 			User: &userSrvPB.User{
+	// 				Username: user.Username,
+	// 				Mobile:   user.Mobile,
+	// 				Email:    user.Email,
+	// 				Password: user.Password,
+	// 				Name:     user.Name,
+	// 				Avatar:   user.Avatar,
+	// 			},
+	// 		}
+	// 		resUserSrv := &userSrvPB.Response{}
+	// 		err = client.Call(context.TODO(), srv.ServiceName, "Users.Create", reqUserSrv, resUserSrv)
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 		// if resUserSrv.Valid {
+	// 		// 	u.Users = append(u.Users, &userPB.User{
+	// 		// 		Id: resUserSrv.User.Id,
+	// 		// 	})
+	// 		// }
+	// 	}
+	// } else {
+	// 	err = fmt.Errorf("未收到用户注册信息")
+	// }
 	// u.CreatedAt = ""
 	// u.UpdatedAt = ""
 	// _, err = srv.Repo.Update(u)
 	// fmt.Println("---Register---", u)
 	return err
+}
+// getWechatMobile 获取微信手机
+func (srv *Socialite) getWechatMobile(u *pb.SocialiteUser,m *pb.Miniprogram) (mobile string, err string) {
+	c := map[string]string{}
+	err = json.Unmarshal([]byte(u.Content), c)
+	if err != err {
+		return fmt.Errorf("微信配置信息解析错误")
+	}
 }
