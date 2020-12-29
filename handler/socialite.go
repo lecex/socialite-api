@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	uuid "github.com/satori/go.uuid"
 
@@ -13,7 +12,6 @@ import (
 	userSrvPB "github.com/lecex/user/proto/user"
 
 	pb "github.com/lecex/socialite-api/proto/socialite"
-	"github.com/lecex/socialite-api/providers/redis"
 )
 
 // Socialite 配置结构
@@ -45,19 +43,6 @@ func (srv *Socialite) Auth(ctx context.Context, req *pb.Request, res *pb.Respons
 			Name:  resAuthSrv.User.Name,
 			Token: resAuthSrv.Token,
 		})
-	}
-	if res.SocialiteUser.Id != "" && len(res.SocialiteUser.Users) == 0 {
-		session := uuid.NewV4().String()
-
-		redis := redis.NewClient()
-		value, _ := json.Marshal(res.SocialiteUser)
-		// 过期时间默认 30 分钟
-		err = redis.Set(session, value, 30*time.Minute).Err()
-
-		if err != nil {
-			return err
-		}
-		res.Session = session
 	}
 	res.SocialiteUser.Content = ""
 	res.SocialiteUser.OauthId = ""
