@@ -166,20 +166,26 @@ func (srv *Socialite) getWechatMobile(u *pb.SocialiteUser, m *pb.Miniprogram) (m
 	if err != err {
 		return "", fmt.Errorf("微信配置信息解析错误")
 	}
+	fmt.Println(1, m.EncryptedData, c["session_key"], m.Iv)
 	info, err := srv.sessionInfo(m.EncryptedData, c["session_key"], m.Iv)
 	mobile = info["phoneNumber"].(string)
 	if err != nil {
 		return
 	}
-
+	return
 }
 
 // sessionInfo 解密小程序会话加密信息
 func (srv *Socialite) sessionInfo(encryptedData, sessionKey, iv string) (info map[string]interface{}, err error) {
-	cipherText, err := base64.StdEncoding.DecodeString(EncryptedData)
+	cipherText, err := base64.StdEncoding.DecodeString(encryptedData)
+	if err != nil {
+		return
+	}
 	aesKey, err := base64.StdEncoding.DecodeString(sessionKey)
+	if err != nil {
+		return
+	}
 	aesIv, err := base64.StdEncoding.DecodeString(iv)
-
 	if err != nil {
 		return
 	}
@@ -188,22 +194,18 @@ func (srv *Socialite) sessionInfo(encryptedData, sessionKey, iv string) (info ma
 		BLOCK_SIZE = 32             // PKCS#7
 		BLOCK_MASK = BLOCK_SIZE - 1 // BLOCK_SIZE 为 2^n 时, 可以用 mask 获取针对 BLOCK_SIZE 的余数
 	)
-
 	if len(cipherText) < BLOCK_SIZE {
 		err = fmt.Errorf("the length of ciphertext too short: %d", len(cipherText))
 		return
 	}
-
 	plaintext := make([]byte, len(cipherText)) // len(plaintext) >= BLOCK_SIZE
-
 	// 解密
 	block, err := aes.NewCipher(aesKey)
 	if err != nil {
 		panic(err)
 	}
-	mode := cipher.NewCBCDecrypter(block, iv)
+	mode := cipher.NewCBCDecrypter(block, aesIv)
 	mode.CryptBlocks(plaintext, cipherText)
-
 	// PKCS#7 去除补位
 	amountToPad := int(plaintext[len(plaintext)-1])
 	if amountToPad < 1 || amountToPad > BLOCK_SIZE {
@@ -211,18 +213,15 @@ func (srv *Socialite) sessionInfo(encryptedData, sessionKey, iv string) (info ma
 		return
 	}
 	plaintext = plaintext[:len(plaintext)-amountToPad]
-
 	// 反拼接
 	// len(plaintext) == 16+4+len(rawXMLMsg)+len(appId)
 	if len(plaintext) <= 20 {
 		err = fmt.Errorf("plaintext too short, the length is %d", len(plaintext))
 		return
 	}
-
 	if err != nil {
 		return
 	}
-
 	if err = json.Unmarshal(plaintext, &info); err != nil {
 		return
 	}
