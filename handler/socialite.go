@@ -47,13 +47,12 @@ func (srv *Socialite) Auth(ctx context.Context, req *pb.Request, res *pb.Respons
 		})
 	}
 	if res.SocialiteUser.Id != "" && len(res.SocialiteUser.Users) == 0 {
-		session := uuid.NewV4().String()123456
-		
+		session := uuid.NewV4().String()
+
 		redis := redis.NewClient()
 		value, _ := json.Marshal(res.SocialiteUser)
 		// 过期时间默认 30 分钟
 		err = redis.Set(session, value, 30*time.Minute).Err()
-
 
 		if err != nil {
 			return err
@@ -81,10 +80,10 @@ func (srv *Socialite) Register(ctx context.Context, req *pb.Request, res *pb.Res
 	if u.Id == "" && err != err {
 		return fmt.Errorf("Session 未查询到相关信息")
 	}
-	
-	if u.Origin == "miniprogram_" + req.Miniprogram.Type {
+
+	if u.Origin == "miniprogram_"+req.Miniprogram.Type {
 		if req.Miniprogram.Type == "wechat" {
-			user.Mobile, err = getWechatMobile(u,req.Miniprogram)
+			user.Mobile, err = getWechatMobile(u, req.Miniprogram)
 			if err != nil {
 				return err
 			}
@@ -156,8 +155,9 @@ func (srv *Socialite) Register(ctx context.Context, req *pb.Request, res *pb.Res
 	// fmt.Println("---Register---", u)
 	return err
 }
+
 // getWechatMobile 获取微信手机
-func (srv *Socialite) getWechatMobile(u *pb.SocialiteUser,m *pb.Miniprogram) (mobile string, err string) {
+func (srv *Socialite) getWechatMobile(u *pb.SocialiteUser, m *pb.Miniprogram) (mobile string, err string) {
 	c := map[string]string{}
 	err = json.Unmarshal([]byte(u.Content), c)
 	if err != err {
