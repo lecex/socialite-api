@@ -47,10 +47,12 @@ message Request {
     Socialite socialite = 1;
     SocialiteUser socialite_user = 2;
     Miniprogram miniprogram = 3;
+    string session = 4;  // 常用语系统缓存位置标识 读取缓存使用
 }
 
 message Response {
     bool valid = 1;
     SocialiteUser socialite_user = 2;
     string url = 3;
+    string session = 4;  // 常用语系统缓存位置标识 读取缓存使用
 }
