@@ -2,6 +2,9 @@ package handler
 
 import (
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -71,7 +74,7 @@ func (srv *Socialite) AuthURL(ctx context.Context, req *pb.Request, res *pb.Resp
 
 // Register 授权后注册【可用于增加新账号】
 func (srv *Socialite) Register(ctx context.Context, req *pb.Request, res *pb.Response) (err error) {
-	// value, _ := json.Marshal(res.SocialiteUser)
+	mobile := ""
 	// 过期时间默认 30 分钟
 	redis := redis.NewClient()
 	socialiteUser, err := redis.Get(req.Session).Result()
@@ -83,13 +86,13 @@ func (srv *Socialite) Register(ctx context.Context, req *pb.Request, res *pb.Res
 
 	if u.Origin == "miniprogram_"+req.Miniprogram.Type {
 		if req.Miniprogram.Type == "wechat" {
-			user.Mobile, err = getWechatMobile(u, req.Miniprogram)
+			mobile, err = srv.getWechatMobile(u, req.Miniprogram)
 			if err != nil {
 				return err
 			}
 		}
 	}
-	if len(req.SocialiteUser.Users) > 0 {
+	if len(req.SocialiteUser.Users) > 0 { // 前端传入的用户数据
 		user := req.SocialiteUser.Users[0]
 		// 禁止直接传入手机邮箱
 		user.Email = ""
@@ -97,7 +100,7 @@ func (srv *Socialite) Register(ctx context.Context, req *pb.Request, res *pb.Res
 		reqUserSrv := &userSrvPB.Request{
 			User: &userSrvPB.User{
 				Username: user.Username,
-				Mobile:   user.Mobile,
+				Mobile:   mobile, // 绑定手机必须是后端通过验证的
 				Email:    user.Email,
 				Password: user.Password,
 				Name:     user.Name,
@@ -157,10 +160,71 @@ func (srv *Socialite) Register(ctx context.Context, req *pb.Request, res *pb.Res
 }
 
 // getWechatMobile 获取微信手机
-func (srv *Socialite) getWechatMobile(u *pb.SocialiteUser, m *pb.Miniprogram) (mobile string, err string) {
+func (srv *Socialite) getWechatMobile(u *pb.SocialiteUser, m *pb.Miniprogram) (mobile string, err error) {
 	c := map[string]string{}
 	err = json.Unmarshal([]byte(u.Content), c)
 	if err != err {
-		return fmt.Errorf("微信配置信息解析错误")
+		return "", fmt.Errorf("微信配置信息解析错误")
 	}
+	info, err := srv.sessionInfo(m.EncryptedData, c["session_key"], m.Iv)
+	mobile = info["phoneNumber"].(string)
+	if err != nil {
+		return
+	}
+
+}
+
+// sessionInfo 解密小程序会话加密信息
+func (srv *Socialite) sessionInfo(encryptedData, sessionKey, iv string) (info map[string]interface{}, err error) {
+	cipherText, err := base64.StdEncoding.DecodeString(EncryptedData)
+	aesKey, err := base64.StdEncoding.DecodeString(sessionKey)
+	aesIv, err := base64.StdEncoding.DecodeString(iv)
+
+	if err != nil {
+		return
+	}
+
+	const (
+		BLOCK_SIZE = 32             // PKCS#7
+		BLOCK_MASK = BLOCK_SIZE - 1 // BLOCK_SIZE 为 2^n 时, 可以用 mask 获取针对 BLOCK_SIZE 的余数
+	)
+
+	if len(cipherText) < BLOCK_SIZE {
+		err = fmt.Errorf("the length of ciphertext too short: %d", len(cipherText))
+		return
+	}
+
+	plaintext := make([]byte, len(cipherText)) // len(plaintext) >= BLOCK_SIZE
+
+	// 解密
+	block, err := aes.NewCipher(aesKey)
+	if err != nil {
+		panic(err)
+	}
+	mode := cipher.NewCBCDecrypter(block, iv)
+	mode.CryptBlocks(plaintext, cipherText)
+
+	// PKCS#7 去除补位
+	amountToPad := int(plaintext[len(plaintext)-1])
+	if amountToPad < 1 || amountToPad > BLOCK_SIZE {
+		err = fmt.Errorf("the amount to pad is incorrect: %d", amountToPad)
+		return
+	}
+	plaintext = plaintext[:len(plaintext)-amountToPad]
+
+	// 反拼接
+	// len(plaintext) == 16+4+len(rawXMLMsg)+len(appId)
+	if len(plaintext) <= 20 {
+		err = fmt.Errorf("plaintext too short, the length is %d", len(plaintext))
+		return
+	}
+
+	if err != nil {
+		return
+	}
+
+	if err = json.Unmarshal(plaintext, &info); err != nil {
+		return
+	}
+	return
 }
