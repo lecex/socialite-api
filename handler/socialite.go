@@ -2,9 +2,6 @@ package handler
 
 import (
 	"context"
-	"crypto/aes"
-	"crypto/cipher"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -84,12 +81,16 @@ func (srv *Socialite) Register(ctx context.Context, req *pb.Request, res *pb.Res
 		return fmt.Errorf("Session 未查询到相关信息")
 	}
 
-	if u.Origin == "miniprogram_"+req.Miniprogram.Type {
-		if req.Miniprogram.Type == "wechat" {
-			mobile, err = srv.getWechatMobile(u, req.Miniprogram)
-			if err != nil {
-				return err
-			}
+	// if req.Miniprogram.Type == "wechat" {
+	// 	mobile, err = srv.getWechatMobile(u, req.Miniprogram)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
+	if req.Miniprogram.Type == "mobile" {
+		mobile, err = srv.getVerifyMobile(u, req.VerifyMobile)
+		if err != nil {
+			return err
 		}
 	}
 	if len(req.SocialiteUser.Users) > 0 { // 前端传入的用户数据
@@ -159,71 +160,75 @@ func (srv *Socialite) Register(ctx context.Context, req *pb.Request, res *pb.Res
 	return err
 }
 
-// getWechatMobile 获取微信手机
-func (srv *Socialite) getWechatMobile(u *pb.SocialiteUser, m *pb.Miniprogram) (mobile string, err error) {
-	c := map[string]string{}
-	err = json.Unmarshal([]byte(u.Content), c)
-	if err != err {
-		return "", fmt.Errorf("微信配置信息解析错误")
-	}
-	fmt.Println(1, m.EncryptedData, c["session_key"], m.Iv)
-	info, err := srv.sessionInfo(m.EncryptedData, c["session_key"], m.Iv)
-	mobile = info["phoneNumber"].(string)
-	if err != nil {
-		return
-	}
+func (srv *Socialite) getVerifyMobile(u *pb.SocialiteUser, m *pb.VerifyMobile) (mobile string, err error) {
 	return
 }
 
-// sessionInfo 解密小程序会话加密信息
-func (srv *Socialite) sessionInfo(encryptedData, sessionKey, iv string) (info map[string]interface{}, err error) {
-	cipherText, err := base64.StdEncoding.DecodeString(encryptedData)
-	if err != nil {
-		return
-	}
-	aesKey, err := base64.StdEncoding.DecodeString(sessionKey)
-	if err != nil {
-		return
-	}
-	aesIv, err := base64.StdEncoding.DecodeString(iv)
-	if err != nil {
-		return
-	}
+// // getWechatMobile 获取微信手机
+// func (srv *Socialite) getWechatMobile(u *pb.SocialiteUser, m *pb.Miniprogram) (mobile string, err error) {
+// 	c := map[string]string{}
+// 	err = json.Unmarshal([]byte(u.Content), c)
+// 	if err != err {
+// 		return "", fmt.Errorf("微信配置信息解析错误")
+// 	}
+// 	fmt.Println(1, m.EncryptedData, c["session_key"], m.Iv)
+// 	info, err := srv.sessionInfo(m.EncryptedData, c["session_key"], m.Iv)
+// 	mobile = info["phoneNumber"].(string)
+// 	if err != nil {
+// 		return
+// 	}
+// 	return
+// }
 
-	const (
-		BLOCK_SIZE = 32             // PKCS#7
-		BLOCK_MASK = BLOCK_SIZE - 1 // BLOCK_SIZE 为 2^n 时, 可以用 mask 获取针对 BLOCK_SIZE 的余数
-	)
-	if len(cipherText) < BLOCK_SIZE {
-		err = fmt.Errorf("the length of ciphertext too short: %d", len(cipherText))
-		return
-	}
-	plaintext := make([]byte, len(cipherText)) // len(plaintext) >= BLOCK_SIZE
-	// 解密
-	block, err := aes.NewCipher(aesKey)
-	if err != nil {
-		panic(err)
-	}
-	mode := cipher.NewCBCDecrypter(block, aesIv)
-	mode.CryptBlocks(plaintext, cipherText)
-	// PKCS#7 去除补位
-	amountToPad := int(plaintext[len(plaintext)-1])
-	if amountToPad < 1 || amountToPad > BLOCK_SIZE {
-		err = fmt.Errorf("the amount to pad is incorrect: %d", amountToPad)
-		return
-	}
-	plaintext = plaintext[:len(plaintext)-amountToPad]
-	// 反拼接
-	// len(plaintext) == 16+4+len(rawXMLMsg)+len(appId)
-	if len(plaintext) <= 20 {
-		err = fmt.Errorf("plaintext too short, the length is %d", len(plaintext))
-		return
-	}
-	if err != nil {
-		return
-	}
-	if err = json.Unmarshal(plaintext, &info); err != nil {
-		return
-	}
-	return
-}
+// // sessionInfo 解密小程序会话加密信息
+// func (srv *Socialite) sessionInfo(encryptedData, sessionKey, iv string) (info map[string]interface{}, err error) {
+// 	cipherText, err := base64.StdEncoding.DecodeString(encryptedData)
+// 	if err != nil {
+// 		return
+// 	}
+// 	aesKey, err := base64.StdEncoding.DecodeString(sessionKey)
+// 	if err != nil {
+// 		return
+// 	}
+// 	aesIv, err := base64.StdEncoding.DecodeString(iv)
+// 	if err != nil {
+// 		return
+// 	}
+
+// 	const (
+// 		BLOCK_SIZE = 32             // PKCS#7
+// 		BLOCK_MASK = BLOCK_SIZE - 1 // BLOCK_SIZE 为 2^n 时, 可以用 mask 获取针对 BLOCK_SIZE 的余数
+// 	)
+// 	if len(cipherText) < BLOCK_SIZE {
+// 		err = fmt.Errorf("the length of ciphertext too short: %d", len(cipherText))
+// 		return
+// 	}
+// 	plaintext := make([]byte, len(cipherText)) // len(plaintext) >= BLOCK_SIZE
+// 	// 解密
+// 	block, err := aes.NewCipher(aesKey)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	mode := cipher.NewCBCDecrypter(block, aesIv)
+// 	mode.CryptBlocks(plaintext, cipherText)
+// 	// PKCS#7 去除补位
+// 	amountToPad := int(plaintext[len(plaintext)-1])
+// 	if amountToPad < 1 || amountToPad > BLOCK_SIZE {
+// 		err = fmt.Errorf("the amount to pad is incorrect: %d", amountToPad)
+// 		return
+// 	}
+// 	plaintext = plaintext[:len(plaintext)-amountToPad]
+// 	// 反拼接
+// 	// len(plaintext) == 16+4+len(rawXMLMsg)+len(appId)
+// 	if len(plaintext) <= 20 {
+// 		err = fmt.Errorf("plaintext too short, the length is %d", len(plaintext))
+// 		return
+// 	}
+// 	if err != nil {
+// 		return
+// 	}
+// 	if err = json.Unmarshal(plaintext, &info); err != nil {
+// 		return
+// 	}
+// 	return
+// }
