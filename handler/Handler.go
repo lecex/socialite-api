@@ -12,6 +12,7 @@ import (
 	configPB "github.com/lecex/socialite-api/proto/config"
 	socialitePB "github.com/lecex/socialite-api/proto/socialite"
 	userPB "github.com/lecex/socialite-api/proto/user"
+	"github.com/lecex/socialite-api/providers/redis"
 
 	"github.com/lecex/socialite-api/config"
 	PB "github.com/lecex/user/proto/permission"
@@ -26,8 +27,9 @@ var Conf = config.Conf
 
 // Register 注册
 func (srv *Handler) Register() {
+	redis := redis.NewClient()
 	configPB.RegisterConfigsHandler(srv.Server, &Config{Conf.Service["socialite"]})
-	socialitePB.RegisterSocialitesHandler(srv.Server, &Socialite{Conf.Service["socialite"], Conf.Service["user"]})
+	socialitePB.RegisterSocialitesHandler(srv.Server, &Socialite{Conf.Service["socialite"], Conf.Service["user"], redis})
 	userPB.RegisterUsersHandler(srv.Server, &User{Conf.Service["socialite"]})
 
 	go Sync() // 同步前端权限

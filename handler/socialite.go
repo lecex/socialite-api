@@ -1,33 +1,46 @@
 package handler
 
 import (
-	"context"
+	context "context"
 	"encoding/json"
-	"fmt"
+	"math/rand"
 	"time"
-
-	uuid "github.com/satori/go.uuid"
 
 	client "github.com/lecex/core/client"
 	authSrvPB "github.com/lecex/user/proto/auth"
 	userSrvPB "github.com/lecex/user/proto/user"
+	"github.com/micro/go-micro/v2/metadata"
 
 	pb "github.com/lecex/socialite-api/proto/socialite"
-	"github.com/lecex/socialite-api/providers/redis"
+
+	"github.com/go-redis/redis"
 )
 
 // Socialite 配置结构
 type Socialite struct {
 	ServiceName string
 	UserService string
+	Redis       *redis.Client
 }
 
-// Auth 获取授权
-func (srv *Socialite) Auth(ctx context.Context, req *pb.Request, res *pb.Response) (err error) {
-	res.SocialiteUser = &pb.SocialiteUser{
-		Users: []*pb.User{},
+func (srv *Socialite) getCache(code string, res *pb.Response) (err error) {
+	// 读取缓存
+	r, err := srv.Redis.Get("SocialiteCode_" + code).Result()
+	if err != nil {
+		if err.Error() == "redis: nil" {
+			return nil
+		}
+		return err
 	}
-	err = client.Call(ctx, srv.ServiceName, "Socialites.Auth", req, res)
+	return json.Unmarshal([]byte(r), res)
+}
+
+func (srv *Socialite) setCache(code string, res *pb.Response, t time.Duration) (err error) {
+	// 缓存30秒 防止重复请求
+	value, _ := json.Marshal(res)
+	return srv.Redis.Set("SocialiteCode_"+code, value, t*time.Second).Err()
+}
+func (srv *Socialite) getUsers(ctx context.Context, res *pb.Response) (err error) {
 	// 获取关联用户token
 	for _, user := range res.SocialiteUser.Users {
 		reqAuthSrv := &authSrvPB.Request{
@@ -36,31 +49,50 @@ func (srv *Socialite) Auth(ctx context.Context, req *pb.Request, res *pb.Respons
 			},
 		}
 		resAuthSrv := &authSrvPB.Response{}
-		err = client.Call(context.TODO(), srv.UserService, "Auth.AuthById", reqAuthSrv, resAuthSrv)
+		err = client.Call(ctx, srv.UserService, "Auth.AuthById", reqAuthSrv, resAuthSrv)
 		if err != nil {
 			return err
 		}
-		res.SocialiteUser.Users = append(res.SocialiteUser.Users, &pb.User{
-			Id:    user.Id,
-			Name:  resAuthSrv.User.Name,
-			Token: resAuthSrv.Token,
-		})
+		user.Username = resAuthSrv.User.Username
+		user.Mobile = resAuthSrv.User.Mobile
+		user.Email = resAuthSrv.User.Email
+		user.Name = resAuthSrv.User.Name
+		user.Avatar = resAuthSrv.User.Avatar
+		user.Token = resAuthSrv.Token
 	}
-	if res.SocialiteUser.Id != "" && len(res.SocialiteUser.Users) == 0 {
-		session := uuid.NewV4().String()
+	return
+}
 
-		redis := redis.NewClient()
-		value, _ := json.Marshal(res.SocialiteUser)
-		// 过期时间默认 30 分钟
-		err = redis.Set(session, value, 30*time.Minute).Err()
-
+// Auth 获取授权
+func (srv *Socialite) Auth(ctx context.Context, req *pb.Request, res *pb.Response) (err error) {
+	res.SocialiteUser = &pb.SocialiteUser{
+		Users: []*pb.User{},
+	}
+	err = srv.getCache(req.Socialite.Code, res) // 读取缓存
+	if err != nil {
+		return err
+	}
+	if res.SocialiteUser.Id == "" {
+		err = client.Call(ctx, srv.ServiceName, "Socialites.Auth", req, res)
 		if err != nil {
 			return err
 		}
-		res.Session = session
+		err = srv.setCache(req.Socialite.Code, res, 30) // 设置缓存 30秒
+		if err != nil {
+			return err
+		}
+		res.SocialiteUser.Content = ""
+		res.SocialiteUser.OauthId = ""
 	}
-	res.SocialiteUser.Content = ""
-	res.SocialiteUser.OauthId = ""
+	if len(res.SocialiteUser.Users) > 0 {
+		err = srv.getUsers(ctx, res) // 设置缓存 30秒
+		if err != nil {
+			return err
+		}
+		res.Valid = true
+	} else {
+		res.Valid = false
+	}
 	return err
 }
 
@@ -69,166 +101,68 @@ func (srv *Socialite) AuthURL(ctx context.Context, req *pb.Request, res *pb.Resp
 	return client.Call(ctx, srv.ServiceName, "Socialites.AuthURL", req, res)
 }
 
+// RegisterUser 注册用户
+func (srv *Socialite) RegisterUser(ctx context.Context, user *pb.User) (res *userSrvPB.User, err error) {
+	// 禁止直接传入手机邮箱
+	user.Email = ""
+	user.Mobile = ""
+	if user.Password == "" {
+		user.Password = srv.getRandomString(8)
+	}
+	if user.Username == "" {
+		user.Username = user.Name + "_" + srv.getRandomString(4)
+	}
+	meta, _ := metadata.FromContext(ctx) // debug 无法获取 meta
+	// 无用户先通过用户服务创建用户
+	reqUserSrv := &userSrvPB.Request{
+		User: &userSrvPB.User{
+			Username: user.Username,
+			Mobile:   user.Mobile, // 绑定手机必须是后端通过验证的
+			Email:    user.Email,
+			Password: user.Password,
+			Name:     user.Name,
+			Avatar:   user.Avatar,
+			Origin:   meta["Service"],
+		},
+	}
+	resUserSrv := &userSrvPB.Response{}
+	err = client.Call(ctx, srv.UserService, "Users.Create", reqUserSrv, resUserSrv)
+	if err != nil {
+		return res, err
+	}
+	return resUserSrv.User, err
+}
+
 // Register 授权后注册【可用于增加新账号】
 func (srv *Socialite) Register(ctx context.Context, req *pb.Request, res *pb.Response) (err error) {
-	mobile := ""
-	// 过期时间默认 30 分钟
-	redis := redis.NewClient()
-	socialiteUser, err := redis.Get(req.Session).Result()
-	u := &pb.SocialiteUser{}
-	err = json.Unmarshal([]byte(socialiteUser), u)
-	if u.Id == "" && err != err {
-		return fmt.Errorf("Session 未查询到相关信息")
+	resAuth := &pb.Response{}
+	err = srv.Auth(ctx, req, resAuth)
+	if err != nil {
+		return err
 	}
-
-	// if req.Miniprogram.Type == "wechat" {
-	// 	mobile, err = srv.getWechatMobile(u, req.Miniprogram)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-	if req.Miniprogram.Type == "mobile" {
-		mobile, err = srv.getVerifyMobile(u, req.VerifyMobile)
+	if resAuth.SocialiteUser.Id != "" {
+		user, err := srv.RegisterUser(ctx, req.SocialiteUser.Users[0])
+		if err != nil {
+			return err
+		}
+		req.SocialiteUser.Id = resAuth.SocialiteUser.Id
+		req.SocialiteUser.Users[0].Id = user.Id
+		err = client.Call(ctx, srv.ServiceName, "Socialites.BuildUser", req, res)
 		if err != nil {
 			return err
 		}
 	}
-	if len(req.SocialiteUser.Users) > 0 { // 前端传入的用户数据
-		user := req.SocialiteUser.Users[0]
-		// 禁止直接传入手机邮箱
-		user.Email = ""
-		// 无用户先通过用户服务创建用户
-		reqUserSrv := &userSrvPB.Request{
-			User: &userSrvPB.User{
-				Username: user.Username,
-				Mobile:   mobile, // 绑定手机必须是后端通过验证的
-				Email:    user.Email,
-				Password: user.Password,
-				Name:     user.Name,
-				Avatar:   user.Avatar,
-			},
-		}
-		resUserSrv := &userSrvPB.Response{}
-		err = client.Call(context.TODO(), srv.UserService, "Users.Create", reqUserSrv, resUserSrv)
-		if err != nil {
-			return err
-		}
-		// if resUserSrv.Valid {
-		// 	u.Users = append(u.Users, &userPB.User{
-		// 		Id: resUserSrv.User.Id,
-		// 	})
-		// }
-	} else {
-		err = fmt.Errorf("未收到用户注册信息")
-	}
-
-	// err = client.Call(ctx, srv.ServiceName, "Users.Get", req, res)
-	// if err != nil {
-	// 	return err
-	// }
-	// if len(req.SocialiteUser.Users) > 0 {
-	// 	for _, user := range req.SocialiteUser.Users {
-	// 		// 无用户先通过用户服务创建用户
-	// 		reqUserSrv := &userSrvPB.Request{
-	// 			User: &userSrvPB.User{
-	// 				Username: user.Username,
-	// 				Mobile:   user.Mobile,
-	// 				Email:    user.Email,
-	// 				Password: user.Password,
-	// 				Name:     user.Name,
-	// 				Avatar:   user.Avatar,
-	// 			},
-	// 		}
-	// 		resUserSrv := &userSrvPB.Response{}
-	// 		err = client.Call(context.TODO(), srv.ServiceName, "Users.Create", reqUserSrv, resUserSrv)
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 		// if resUserSrv.Valid {
-	// 		// 	u.Users = append(u.Users, &userPB.User{
-	// 		// 		Id: resUserSrv.User.Id,
-	// 		// 	})
-	// 		// }
-	// 	}
-	// } else {
-	// 	err = fmt.Errorf("未收到用户注册信息")
-	// }
-	// u.CreatedAt = ""
-	// u.UpdatedAt = ""
-	// _, err = srv.Repo.Update(u)
-	// fmt.Println("---Register---", u)
 	return err
 }
 
-func (srv *Socialite) getVerifyMobile(u *pb.SocialiteUser, m *pb.VerifyMobile) (mobile string, err error) {
-	return
+// getRandomString 生成随机字符串
+func (srv *Socialite) getRandomString(length int64) string {
+	str := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	bytes := []byte(str)
+	result := []byte{}
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := 0; int64(i) < length; i++ {
+		result = append(result, bytes[r.Intn(len(bytes))])
+	}
+	return string(result)
 }
-
-// // getWechatMobile 获取微信手机
-// func (srv *Socialite) getWechatMobile(u *pb.SocialiteUser, m *pb.Miniprogram) (mobile string, err error) {
-// 	c := map[string]string{}
-// 	err = json.Unmarshal([]byte(u.Content), c)
-// 	if err != err {
-// 		return "", fmt.Errorf("微信配置信息解析错误")
-// 	}
-// 	fmt.Println(1, m.EncryptedData, c["session_key"], m.Iv)
-// 	info, err := srv.sessionInfo(m.EncryptedData, c["session_key"], m.Iv)
-// 	mobile = info["phoneNumber"].(string)
-// 	if err != nil {
-// 		return
-// 	}
-// 	return
-// }
-
-// // sessionInfo 解密小程序会话加密信息
-// func (srv *Socialite) sessionInfo(encryptedData, sessionKey, iv string) (info map[string]interface{}, err error) {
-// 	cipherText, err := base64.StdEncoding.DecodeString(encryptedData)
-// 	if err != nil {
-// 		return
-// 	}
-// 	aesKey, err := base64.StdEncoding.DecodeString(sessionKey)
-// 	if err != nil {
-// 		return
-// 	}
-// 	aesIv, err := base64.StdEncoding.DecodeString(iv)
-// 	if err != nil {
-// 		return
-// 	}
-
-// 	const (
-// 		BLOCK_SIZE = 32             // PKCS#7
-// 		BLOCK_MASK = BLOCK_SIZE - 1 // BLOCK_SIZE 为 2^n 时, 可以用 mask 获取针对 BLOCK_SIZE 的余数
-// 	)
-// 	if len(cipherText) < BLOCK_SIZE {
-// 		err = fmt.Errorf("the length of ciphertext too short: %d", len(cipherText))
-// 		return
-// 	}
-// 	plaintext := make([]byte, len(cipherText)) // len(plaintext) >= BLOCK_SIZE
-// 	// 解密
-// 	block, err := aes.NewCipher(aesKey)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	mode := cipher.NewCBCDecrypter(block, aesIv)
-// 	mode.CryptBlocks(plaintext, cipherText)
-// 	// PKCS#7 去除补位
-// 	amountToPad := int(plaintext[len(plaintext)-1])
-// 	if amountToPad < 1 || amountToPad > BLOCK_SIZE {
-// 		err = fmt.Errorf("the amount to pad is incorrect: %d", amountToPad)
-// 		return
-// 	}
-// 	plaintext = plaintext[:len(plaintext)-amountToPad]
-// 	// 反拼接
-// 	// len(plaintext) == 16+4+len(rawXMLMsg)+len(appId)
-// 	if len(plaintext) <= 20 {
-// 		err = fmt.Errorf("plaintext too short, the length is %d", len(plaintext))
-// 		return
-// 	}
-// 	if err != nil {
-// 		return
-// 	}
-// 	if err = json.Unmarshal(plaintext, &info); err != nil {
-// 		return
-// 	}
-// 	return
-// }

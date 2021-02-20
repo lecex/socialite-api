@@ -19,7 +19,6 @@ func main() {
 		micro.WrapHandler(Conf.Middleware().Wrapper), //验证权限
 	)
 	service.Init()
-
 	// 注册服务
 	h := handler.Handler{
 		Server: service.Server(),

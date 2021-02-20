@@ -38,28 +38,14 @@ message SocialiteUser {
     repeated User users = 5;
 }
 
-message Miniprogram{ 
-    string encryptedData = 1;
-    string iv = 2;
-    string type = 3; // 小程序类型 微信、支付宝、字节跳动、百度
-}
-// 验证手机
-message VerifyMobile{ 
-    string uuid = 1;
-    string code = 2;
-}
 
 message Request {
     Socialite socialite = 1;
     SocialiteUser socialite_user = 2;
-    Miniprogram miniprogram = 3;
-    VerifyMobile verify_mobile = 4;
-    string session = 5;  // 常用语系统缓存位置标识 读取缓存使用
 }
 
 message Response {
     bool valid = 1;
     SocialiteUser socialite_user = 2;
     string url = 3;
-    string session = 4;  // 常用语系统缓存位置标识 读取缓存使用
 }

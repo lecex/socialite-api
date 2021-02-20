@@ -11,7 +11,7 @@ func NewClient() *redis.Client {
 	addr := env.Getenv("REDIS_HOST", "127.0.0.1") + ":" + env.Getenv("REDIS_PORT", "6379")
 	client := redis.NewClient(&redis.Options{
 		Addr:     addr,
-		Password: env.Getenv("REDIS_PASSWORD", ""),
+		Password: env.Getenv("REDIS_PASSWORD", "123456"),
 		DB:       0, // use default DB
 	})
 	pong, err := client.Ping().Result()
