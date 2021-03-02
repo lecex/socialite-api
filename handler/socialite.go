@@ -3,7 +3,6 @@ package handler
 import (
 	context "context"
 	"encoding/json"
-	"fmt"
 	"math/rand"
 	"time"
 
@@ -54,12 +53,6 @@ func (srv *Socialite) getUsers(ctx context.Context, res *pb.Response) (err error
 		if err != nil {
 			return err
 		}
-		fmt.Println(resAuthSrv)
-		user.Username = resAuthSrv.User.Username
-		user.Mobile = resAuthSrv.User.Mobile
-		user.Email = resAuthSrv.User.Email
-		user.Name = resAuthSrv.User.Name
-		user.Avatar = resAuthSrv.User.Avatar
 		user.Token = resAuthSrv.Token
 	}
 	return
