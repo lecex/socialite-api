@@ -40,7 +40,7 @@ func TestSocialiteRegister(t *testing.T) {
 			Users: []*socialitePB.User{
 				&socialitePB.User{
 					Mobile: "13954386521",
-					Name:   "BigRocs",
+					Name:   "🤩 测试网名123*-🥰",
 					Avatar: "https://thirdwx.qlogo.cn/mmopen/vi_32/DYAIOgq83ep1m5aI7y3WJAP6XIXN4e39124xvcjJoI9AM8QXjB9jN6VJpl3C32VNeXELnB71EWk8sE7zp32n4A/132",
 				},
 			},

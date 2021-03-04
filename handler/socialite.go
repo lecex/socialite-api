@@ -98,24 +98,21 @@ func (srv *Socialite) AuthURL(ctx context.Context, req *pb.Request, res *pb.Resp
 }
 
 // RegisterUser 注册用户
-func (srv *Socialite) RegisterUser(ctx context.Context, user *pb.User, verify string) (res *userSrvPB.User, err error) {
+func (srv *Socialite) RegisterUser(ctx context.Context, user *pb.User, captcha string) (res *userSrvPB.User, err error) {
 	if user.Mobile != "" { // 验证手机
-		err = srv.Verify(user.Mobile, verify)
+		err = srv.VerifyCaptcha(user.Mobile, captcha)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if user.Email != "" { // 验证邮箱
-		err = srv.Verify(user.Email, verify)
+		err = srv.VerifyCaptcha(user.Email, captcha)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if user.Password == "" {
 		user.Password = srv.getRandomString(8)
-	}
-	if user.Username == "" {
-		user.Username = user.Name + "_" + srv.getRandomString(4)
 	}
 	meta, _ := metadata.FromContext(ctx) // debug 无法获取 meta
 	// 无用户先通过用户服务创建用户
@@ -146,7 +143,7 @@ func (srv *Socialite) Register(ctx context.Context, req *pb.Request, res *pb.Res
 		return err
 	}
 	if resAuth.SocialiteUser.Id != "" {
-		user, err := srv.RegisterUser(ctx, req.SocialiteUser.Users[0], req.Verify)
+		user, err := srv.RegisterUser(ctx, req.SocialiteUser.Users[0], req.Captcha)
 		if err != nil {
 			return err
 		}
@@ -172,16 +169,16 @@ func (srv *Socialite) getRandomString(length int64) string {
 	return string(result)
 }
 
-// Verify 校验验证码
-func (srv *Socialite) Verify(addressee string, verify string) (err error) {
-	r, err := srv.Redis.Get("verify_" + addressee).Result()
+// VerifyCaptcha 校验验证码
+func (srv *Socialite) VerifyCaptcha(addressee string, captcha string) (err error) {
+	r, err := srv.Redis.Get("captcha_" + addressee).Result()
 	if err != nil {
 		if err.Error() == "redis: nil" {
 			return fmt.Errorf("验证码已超时")
 		}
 		return err
 	}
-	if r != verify {
+	if r != captcha {
 		return fmt.Errorf("验证码错误")
 	}
 	return nil
