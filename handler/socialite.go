@@ -118,20 +118,26 @@ func (srv *Socialite) RegisterUser(ctx context.Context, user *pb.User, captcha s
 	// 无用户先通过用户服务创建用户
 	reqUserSrv := &userSrvPB.Request{
 		User: &userSrvPB.User{
-			Username: user.Username,
-			Mobile:   user.Mobile, // 绑定手机必须是后端通过验证的
-			Email:    user.Email,
-			Password: user.Password,
-			Name:     user.Name,
-			Avatar:   user.Avatar,
-			Origin:   meta["Service"],
+			Mobile: user.Mobile, // 绑定手机必须是后端通过验证的
+			Email:  user.Email,
 		},
 	}
 	resUserSrv := &userSrvPB.Response{}
-	err = client.Call(ctx, srv.UserService, "Users.Exist", reqUserSrv, resUserSrv)
+	err = client.Call(ctx, srv.UserService, "Users.Exist", reqUserSrv, resUserSrv) // 检测用户是否存在
 	if resUserSrv.Valid {
 		err = client.Call(ctx, srv.UserService, "Users.Get", reqUserSrv, resUserSrv)
 	} else {
+		reqUserSrv := &userSrvPB.Request{
+			User: &userSrvPB.User{
+				Username: user.Username,
+				Mobile:   user.Mobile, // 绑定手机必须是后端通过验证的
+				Email:    user.Email,
+				Password: user.Password,
+				Name:     user.Name,
+				Avatar:   user.Avatar,
+				Origin:   meta["Service"],
+			},
+		}
 		err = client.Call(ctx, srv.UserService, "Users.Create", reqUserSrv, resUserSrv)
 	}
 	if err != nil {
