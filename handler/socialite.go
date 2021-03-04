@@ -115,7 +115,6 @@ func (srv *Socialite) RegisterUser(ctx context.Context, user *pb.User, captcha s
 		user.Password = srv.getRandomString(8)
 	}
 	meta, _ := metadata.FromContext(ctx) // debug 无法获取 meta
-	// 无用户先通过用户服务创建用户
 	reqUserSrv := &userSrvPB.Request{
 		User: &userSrvPB.User{
 			Mobile: user.Mobile, // 绑定手机必须是后端通过验证的
@@ -125,8 +124,10 @@ func (srv *Socialite) RegisterUser(ctx context.Context, user *pb.User, captcha s
 	resUserSrv := &userSrvPB.Response{}
 	err = client.Call(ctx, srv.UserService, "Users.Exist", reqUserSrv, resUserSrv) // 检测用户是否存在
 	if resUserSrv.Valid {
+		// 获取已存在 邮件和手机的 用户信息
 		err = client.Call(ctx, srv.UserService, "Users.Get", reqUserSrv, resUserSrv)
 	} else {
+		// 无用户信息创建新用户
 		reqUserSrv := &userSrvPB.Request{
 			User: &userSrvPB.User{
 				Username: user.Username,
