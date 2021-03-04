@@ -129,7 +129,6 @@ func (srv *Socialite) RegisterUser(ctx context.Context, user *pb.User, captcha s
 	}
 	resUserSrv := &userSrvPB.Response{}
 	err = client.Call(ctx, srv.UserService, "Users.Create", reqUserSrv, resUserSrv)
-	fmt.Println(reqUserSrv, err)
 	if err != nil {
 		return res, err
 	}
