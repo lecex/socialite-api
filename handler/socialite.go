@@ -3,6 +3,7 @@ package handler
 import (
 	context "context"
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -97,10 +98,19 @@ func (srv *Socialite) AuthURL(ctx context.Context, req *pb.Request, res *pb.Resp
 }
 
 // RegisterUser 注册用户
-func (srv *Socialite) RegisterUser(ctx context.Context, user *pb.User) (res *userSrvPB.User, err error) {
-	// 禁止直接传入手机邮箱
-	user.Email = ""
-	user.Mobile = ""
+func (srv *Socialite) RegisterUser(ctx context.Context, user *pb.User, verify string) (res *userSrvPB.User, err error) {
+	if user.Mobile != "" { // 验证手机
+		err = srv.Verify(user.Mobile, verify)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if user.Email != "" { // 验证邮箱
+		err = srv.Verify(user.Email, verify)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if user.Password == "" {
 		user.Password = srv.getRandomString(8)
 	}
@@ -136,7 +146,7 @@ func (srv *Socialite) Register(ctx context.Context, req *pb.Request, res *pb.Res
 		return err
 	}
 	if resAuth.SocialiteUser.Id != "" {
-		user, err := srv.RegisterUser(ctx, req.SocialiteUser.Users[0])
+		user, err := srv.RegisterUser(ctx, req.SocialiteUser.Users[0], req.Verify)
 		if err != nil {
 			return err
 		}
@@ -160,4 +170,20 @@ func (srv *Socialite) getRandomString(length int64) string {
 		result = append(result, bytes[r.Intn(len(bytes))])
 	}
 	return string(result)
+}
+
+// Verify 校验验证码
+func (srv *Socialite) Verify(addressee string, verify string) (err error) {
+	r, err := srv.Redis.Get("verify_" + addressee).Result()
+	if err != nil {
+		if err.Error() == "redis: nil" {
+			return fmt.Errorf("验证码已超时")
+		}
+		return err
+	}
+	if r != verify {
+		return fmt.Errorf("验证码错误")
+	}
+	return nil
+
 }

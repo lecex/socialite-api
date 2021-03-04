@@ -42,6 +42,7 @@ message SocialiteUser {
 message Request {
     Socialite socialite = 1;
     SocialiteUser socialite_user = 2;
+    string verify = 3;                      // 验证码
 }
 
 message Response {

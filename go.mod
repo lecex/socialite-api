@@ -10,6 +10,7 @@ require (
 	github.com/golang/protobuf v1.4.2
 	github.com/jinzhu/gorm v1.9.12
 	github.com/lecex/core v1.1.3
+	github.com/lecex/message-api v0.0.0-20210302080843-c01e15b8d95c // indirect
 	github.com/lecex/user v1.2.14
 	github.com/micro/go-micro/v2 v2.3.0
 	github.com/satori/go.uuid v1.2.0
