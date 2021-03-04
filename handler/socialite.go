@@ -171,7 +171,7 @@ func (srv *Socialite) getRandomString(length int64) string {
 
 // VerifyCaptcha 校验验证码
 func (srv *Socialite) VerifyCaptcha(addressee string, captcha string) (err error) {
-	r, err := srv.Redis.Get("captcha_" + addressee).Result()
+	r, err := srv.Redis.Get("Captcha_" + addressee).Result()
 	if err != nil {
 		if err.Error() == "redis: nil" {
 			return fmt.Errorf("验证码已超时")

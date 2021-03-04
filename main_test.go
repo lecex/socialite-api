@@ -45,7 +45,7 @@ func TestSocialiteRegister(t *testing.T) {
 				},
 			},
 		},
-		Verify: "123456",
+		Captcha: "123456",
 	}
 	res := &socialitePB.Response{}
 	fmt.Println("----Register----", res, res)
