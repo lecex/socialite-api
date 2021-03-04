@@ -181,6 +181,7 @@ func (srv *Socialite) VerifyCaptcha(addressee string, captcha string) (err error
 	if r != captcha {
 		return fmt.Errorf("验证码错误")
 	}
+	srv.Redis.Set("Captcha_"+addressee, r, 1*time.Second).Err() // 1秒后自动过期
 	return nil
 
 }
