@@ -128,6 +128,13 @@ func (srv *Socialite) RegisterUser(ctx context.Context, user *pb.User, captcha s
 		err = client.Call(ctx, srv.UserService, "Users.Get", reqUserSrv, resUserSrv)
 	} else {
 		// 无用户信息创建新用户
+		if user.Username == "" {
+			if user.Mobile != "" {
+				user.Username = user.Mobile
+			} else {
+				user.Username = meta["Service"] + "_" + srv.getRandomString(8)
+			}
+		}
 		reqUserSrv := &userSrvPB.Request{
 			User: &userSrvPB.User{
 				Username: user.Username,
