@@ -111,10 +111,13 @@ func (srv *Socialite) RegisterUser(ctx context.Context, user *pb.User, captcha s
 			return nil, err
 		}
 	}
+	if user.Mobile == "" && user.Email == "" {
+		return nil, fmt.Errorf("请输入手机或者邮箱,以及对应验证码")
+	}
 	if user.Password == "" {
 		user.Password = srv.getRandomString(8)
 	}
-	meta, _ := metadata.FromContext(ctx) // debug 无法获取 meta
+	meta, _ := metadata.FromContext(ctx)
 	reqUserSrv := &userSrvPB.Request{
 		User: &userSrvPB.User{
 			Mobile: user.Mobile, // 绑定手机必须是后端通过验证的

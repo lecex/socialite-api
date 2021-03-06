@@ -3,6 +3,7 @@ module github.com/lecex/socialite-api
 go 1.13
 
 require (
+	code.aliyun.com/xilewanggou/old-sql-service v0.0.0-20200101072504-9df63dc25588 // indirect
 	github.com/clbanning/mxj v1.8.4
 	github.com/go-redis/redis v6.15.7+incompatible
 	github.com/gogo/protobuf v1.3.1
