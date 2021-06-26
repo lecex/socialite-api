@@ -21,8 +21,12 @@ var Conf config.Config = config.Config{
 		"socialite": env.Getenv("SOCIALITE_SERVICE", "go.micro.srv.socialite"),
 	},
 	Permissions: []*PB.Permission{
+		{Service: "socialite-api", Method: "Configs.All", Auth: true, Policy: true, Name: "获取全部社会登录配置", Description: "获取全部社会登录配置。"},
+		{Service: "socialite-api", Method: "Configs.List", Auth: true, Policy: true, Name: "获取社会登录配置列表", Description: "获取社会登录配置列表。"},
 		{Service: "socialite-api", Method: "Configs.Get", Auth: true, Policy: true, Name: "获取社会登录配置", Description: "获取社会登录配置。"},
+		{Service: "socialite-api", Method: "Configs.Create", Auth: true, Policy: true, Name: "创建社会登录配置", Description: "创建社会登录配置。"},
 		{Service: "socialite-api", Method: "Configs.Update", Auth: true, Policy: true, Name: "更新社会登录配置", Description: "更新社会登录配置。"},
+		{Service: "socialite-api", Method: "Configs.Delete", Auth: true, Policy: true, Name: "删除社会登录配置", Description: "删除社会登录配置。"},
 
 		{Service: "socialite-api", Method: "Socialites.Auth", Auth: false, Policy: false, Name: "社会登录授权", Description: "社会登录授权。"},
 		{Service: "socialite-api", Method: "Socialites.Register", Auth: false, Policy: false, Name: "社会登录注册", Description: "社会登录注册。"},
