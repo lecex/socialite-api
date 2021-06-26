@@ -3,34 +3,47 @@ syntax = "proto3";
 package config;
 
 service Configs {
-    // 根据 唯一 获取配置设置
+        // 全部配置
+    rpc All(Request) returns (Response) {}
+    // 获取配置列表
+    rpc List(Request) returns (Response) {}
+    // 根据 唯一 获取配置
     rpc Get(Request) returns (Response) {}
-    // 更新配置设置
+    // 创建配置
+    rpc Create(Request) returns (Response) {}
+    // 更新配置
     rpc Update(Request) returns (Response) {}
+    // 删除配置
+    rpc Delete(Request) returns (Response) {}
+}
+message Config {
+    int64 id = 1;
+    string name = 2;
+    string driver = 3;
+    string client_id = 4;
+    string client_secret = 5;
+    string redirect = 6;
+    bool status = 7;
+    string created_at = 8;
+    string updated_at = 9;
+}
+
+message ListQuery{
+    int64 limit=1; //返回数量
+    int64 page=2; //页面
+    string sort=3; // 排序
+    string where = 4;       // 查询条件
 }
 
 message Request{
-    Config config = 1;
+    ListQuery list_query = 1;           // 列表分页请求
+    Config config = 2;
+    repeated Config configs = 3;
 }
 
-message Response {
-    Config config = 1;
-    bool valid = 2;
+message Response{
+    bool valid = 1;
+    int64 total = 2;
+    Config config = 3;
+    repeated Config configs = 4;
 }
-
-message Config{
-    Wechat wechat = 1;
-    MiniprogramWechat miniprogram_wechat = 2;               // 短信配置
-}
-
-
-message Wechat{
-    string app_id = 1;
-    string secret = 2;
-}
-
-message MiniprogramWechat{
-    string app_id = 1;           // 小程序
-    string secret = 2;          // 小程序
-}
-

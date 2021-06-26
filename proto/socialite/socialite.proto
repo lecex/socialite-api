@@ -13,10 +13,10 @@ service Socialites {
 
 
 message Socialite {
-    string driver = 1;
-    string code = 2;
-    string state = 3;
-    string callback = 4;
+    string driver = 1;      // 驱动名称标识
+    string code = 2;        // 小程序登录时code码
+    string client_id = 3;   // 一般对应app_id 
+    string callback = 4;    // 网页登录时回调网址
 }
 
 message User {

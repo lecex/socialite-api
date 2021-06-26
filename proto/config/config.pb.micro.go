@@ -34,10 +34,18 @@ var _ server.Option
 // Client API for Configs service
 
 type ConfigsService interface {
-	// 根据 唯一 获取配置设置
+	// 全部配置
+	All(ctx context.Context, in *Request, opts ...client.CallOption) (*Response, error)
+	// 获取配置列表
+	List(ctx context.Context, in *Request, opts ...client.CallOption) (*Response, error)
+	// 根据 唯一 获取配置
 	Get(ctx context.Context, in *Request, opts ...client.CallOption) (*Response, error)
-	// 更新配置设置
+	// 创建配置
+	Create(ctx context.Context, in *Request, opts ...client.CallOption) (*Response, error)
+	// 更新配置
 	Update(ctx context.Context, in *Request, opts ...client.CallOption) (*Response, error)
+	// 删除配置
+	Delete(ctx context.Context, in *Request, opts ...client.CallOption) (*Response, error)
 }
 
 type configsService struct {
@@ -52,8 +60,38 @@ func NewConfigsService(name string, c client.Client) ConfigsService {
 	}
 }
 
+func (c *configsService) All(ctx context.Context, in *Request, opts ...client.CallOption) (*Response, error) {
+	req := c.c.NewRequest(c.name, "Configs.All", in)
+	out := new(Response)
+	err := c.c.Call(ctx, req, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configsService) List(ctx context.Context, in *Request, opts ...client.CallOption) (*Response, error) {
+	req := c.c.NewRequest(c.name, "Configs.List", in)
+	out := new(Response)
+	err := c.c.Call(ctx, req, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *configsService) Get(ctx context.Context, in *Request, opts ...client.CallOption) (*Response, error) {
 	req := c.c.NewRequest(c.name, "Configs.Get", in)
+	out := new(Response)
+	err := c.c.Call(ctx, req, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configsService) Create(ctx context.Context, in *Request, opts ...client.CallOption) (*Response, error) {
+	req := c.c.NewRequest(c.name, "Configs.Create", in)
 	out := new(Response)
 	err := c.c.Call(ctx, req, out, opts...)
 	if err != nil {
@@ -72,19 +110,41 @@ func (c *configsService) Update(ctx context.Context, in *Request, opts ...client
 	return out, nil
 }
 
+func (c *configsService) Delete(ctx context.Context, in *Request, opts ...client.CallOption) (*Response, error) {
+	req := c.c.NewRequest(c.name, "Configs.Delete", in)
+	out := new(Response)
+	err := c.c.Call(ctx, req, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for Configs service
 
 type ConfigsHandler interface {
-	// 根据 唯一 获取配置设置
+	// 全部配置
+	All(context.Context, *Request, *Response) error
+	// 获取配置列表
+	List(context.Context, *Request, *Response) error
+	// 根据 唯一 获取配置
 	Get(context.Context, *Request, *Response) error
-	// 更新配置设置
+	// 创建配置
+	Create(context.Context, *Request, *Response) error
+	// 更新配置
 	Update(context.Context, *Request, *Response) error
+	// 删除配置
+	Delete(context.Context, *Request, *Response) error
 }
 
 func RegisterConfigsHandler(s server.Server, hdlr ConfigsHandler, opts ...server.HandlerOption) error {
 	type configs interface {
+		All(ctx context.Context, in *Request, out *Response) error
+		List(ctx context.Context, in *Request, out *Response) error
 		Get(ctx context.Context, in *Request, out *Response) error
+		Create(ctx context.Context, in *Request, out *Response) error
 		Update(ctx context.Context, in *Request, out *Response) error
+		Delete(ctx context.Context, in *Request, out *Response) error
 	}
 	type Configs struct {
 		configs
@@ -97,10 +157,26 @@ type configsHandler struct {
 	ConfigsHandler
 }
 
+func (h *configsHandler) All(ctx context.Context, in *Request, out *Response) error {
+	return h.ConfigsHandler.All(ctx, in, out)
+}
+
+func (h *configsHandler) List(ctx context.Context, in *Request, out *Response) error {
+	return h.ConfigsHandler.List(ctx, in, out)
+}
+
 func (h *configsHandler) Get(ctx context.Context, in *Request, out *Response) error {
 	return h.ConfigsHandler.Get(ctx, in, out)
 }
 
+func (h *configsHandler) Create(ctx context.Context, in *Request, out *Response) error {
+	return h.ConfigsHandler.Create(ctx, in, out)
+}
+
 func (h *configsHandler) Update(ctx context.Context, in *Request, out *Response) error {
 	return h.ConfigsHandler.Update(ctx, in, out)
+}
+
+func (h *configsHandler) Delete(ctx context.Context, in *Request, out *Response) error {
+	return h.ConfigsHandler.Delete(ctx, in, out)
 }
