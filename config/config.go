@@ -15,7 +15,7 @@ import (
 //	Description // 权限解释
 var Conf config.Config = config.Config{
 	Name:    env.Getenv("MICRO_API_NAMESPACE", "go.micro.api.") + "socialite-api",
-	Version: "v1.3.3",
+	Version: "v1.3.10",
 	Service: map[string]string{
 		"user":      env.Getenv("USER_SERVICE", "go.micro.srv.user"),
 		"socialite": env.Getenv("SOCIALITE_SERVICE", "go.micro.srv.socialite"),

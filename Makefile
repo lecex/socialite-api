@@ -26,3 +26,8 @@ run:
 	go run main.go
 test:
 	go test main_test.go -test.v
+t:
+	git tag -d v1.3.10
+	git push origin :refs/tags/v1.3.10
+	git tag v1.3.10
+	git push --tags
