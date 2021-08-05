@@ -35,7 +35,7 @@ var Conf config.Config = config.Config{
 		{Service: "socialite-api", Method: "Users.List", Auth: true, Policy: true, Name: "社会登录用户列表", Description: "社会登录用户列表。"},
 		{Service: "socialite-api", Method: "Users.Get", Auth: true, Policy: true, Name: "社会登录获取用户", Description: "社会登录获取用户。"},
 		{Service: "socialite-api", Method: "Users.Create", Auth: true, Policy: true, Name: "社会登录创建用户", Description: "社会登录创建用户。"},
-		{Service: "socialite-api", Method: "Users.Update", Auth: true, Policy: true, Name: "社会登录用户灯芯", Description: "社会登录用户灯芯。"},
+		{Service: "socialite-api", Method: "Users.Update", Auth: true, Policy: true, Name: "社会登录用户更新", Description: "社会登录用户更新。"},
 		{Service: "socialite-api", Method: "Users.Delete", Auth: true, Policy: true, Name: "社会登录删除用户", Description: "社会登录删除用户。"},
 		{Service: "socialite-api", Method: "Users.SelfBind", Auth: true, Policy: false, Name: "社会登录绑定用户", Description: "社会登录绑定用户。"},
 		{Service: "socialite-api", Method: "Users.SelfUnbind", Auth: true, Policy: false, Name: "社会登录接触绑定", Description: "社会登录接触绑定。"},
